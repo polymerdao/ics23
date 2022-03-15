@@ -25,7 +25,6 @@ package ics23
 import (
 	"bytes"
 	"fmt"
-	"github.com/gballet/go-verkle"
 )
 
 // CommitmentRoot is a byte slice that represents the merkle root of a tree that can be used to validate proofs
@@ -37,11 +36,10 @@ type CommitmentRoot []byte
 func VerifyMembership(spec *ProofSpec, root CommitmentRoot, proof *CommitmentProof, key []byte, value []byte) bool {
 	switch p := proof.Proof.(type) {
 	case *CommitmentProof_Verkle:
-		_, err := verkle.DeserializeProof(p.Verkle.GetProof())
+		err := p.Verkle.Verify(root, map[string][]byte{string(key): value})
 		if err != nil {
 			return false
 		}
-		// TODO: verify verkle proof
 		return true
 	}
 	// decompress it before running code (no-op if not compressed)
@@ -62,11 +60,10 @@ func VerifyMembership(spec *ProofSpec, root CommitmentRoot, proof *CommitmentPro
 func VerifyNonMembership(spec *ProofSpec, root CommitmentRoot, proof *CommitmentProof, key []byte) bool {
 	switch p := proof.Proof.(type) {
 	case *CommitmentProof_Verkle:
-		_, err := verkle.DeserializeProof(p.Verkle.GetProof())
+		err := p.Verkle.Verify(root, map[string][]byte{string(key): nil})
 		if err != nil {
 			return false
 		}
-		// TODO: verify verkle proof
 		return true
 	}
 	// decompress it before running code (no-op if not compressed)
@@ -84,11 +81,10 @@ func VerifyNonMembership(spec *ProofSpec, root CommitmentRoot, proof *Commitment
 func BatchVerifyMembership(spec *ProofSpec, root CommitmentRoot, proof *CommitmentProof, items map[string][]byte) bool {
 	switch p := proof.Proof.(type) {
 	case *CommitmentProof_Verkle:
-		_, err := verkle.DeserializeProof(p.Verkle.GetProof())
+		err := p.Verkle.Verify(root, items)
 		if err != nil {
 			return false
 		}
-		// TODO: verify verkle proof
 		return true
 	}
 	// decompress it before running code (no-op if not compressed) - once for batch
@@ -107,11 +103,14 @@ func BatchVerifyMembership(spec *ProofSpec, root CommitmentRoot, proof *Commitme
 func BatchVerifyNonMembership(spec *ProofSpec, root CommitmentRoot, proof *CommitmentProof, keys [][]byte) bool {
 	switch p := proof.Proof.(type) {
 	case *CommitmentProof_Verkle:
-		_, err := verkle.DeserializeProof(p.Verkle.GetProof())
+		kvs := make(map[string][]byte)
+		for _, k := range keys {
+			kvs[string(k)] = nil
+		}
+		err := p.Verkle.Verify(root, kvs)
 		if err != nil {
 			return false
 		}
-		// TODO: verify verkle proof
 		return true
 	}
 	// decompress it before running code (no-op if not compressed) - once for batch
