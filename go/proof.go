@@ -3,6 +3,7 @@ package ics23
 import (
 	"bytes"
 
+	"github.com/gballet/go-verkle"
 	"github.com/pkg/errors"
 )
 
@@ -58,6 +59,54 @@ var SmtSpec = &ProofSpec{
 		Hash:            HashOp_SHA256,
 	},
 	MaxDepth: 256,
+}
+
+// Verify verifies Verkle proofs for both existence and nonexistence and batch proofs.
+func (p *VerkleProof) Verify(root CommitmentRoot, kvs map[string][]byte) error {
+	// TODO: should not rebuild verkle tree from KVs
+	tree := verkle.New()
+	if len(p.Value) != len(p.Key) {
+		return errors.New("Temporary requirement: len of KV must match")
+	}
+	num := len(p.Value)
+	for i := 0; i < num; i++ {
+		err := tree.Insert(p.Key[i], p.Value[i], nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	root2 := tree.ComputeCommitment().Bytes()
+	if !bytes.Equal(root, root2[:]) {
+		return errors.New("Root commitment not match")
+	}
+
+	var keys [][]byte
+	for key, val := range kvs {
+		keys = append(keys, []byte(key))
+		val2, err := tree.Get([]byte(key), nil)
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(val, val2) {
+			return errors.New("Value mismatch for key:" + key)
+		}
+	}
+
+	cfg, err := verkle.GetConfig()
+	if err != nil {
+		return err
+	}
+	proof, err := verkle.DeserializeProof(p.Proof)
+	if err != nil {
+		return err
+	}
+	pe, _, _ := verkle.GetCommitmentsForMultiproof(tree, keys)
+	if !verkle.VerifyVerkleProof(proof, pe.Cis, pe.Zis, pe.Yis, cfg) {
+		return errors.New("Failed to verify proof")
+	}
+
+	return nil
 }
 
 // Calculate determines the root hash that matches a given Commitment proof
