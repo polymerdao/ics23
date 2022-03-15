@@ -80,6 +80,15 @@ message NonExistenceProof {
 }
 
 /*
+Verkle proof is a multiproof of mixed existence and nonexistence.
+*/
+message VerkleProof {
+  repeated bytes key = 1;
+  repeated bytes value = 2;
+  bytes proof = 3;
+}
+
+/*
 CommitmentProof is either an ExistenceProof or a NonExistenceProof, or a Batch of such messages
 */
 message CommitmentProof {
@@ -88,6 +97,7 @@ message CommitmentProof {
         NonExistenceProof nonexist = 2;
         BatchProof batch = 3;
         CompressedBatchProof compressed = 4;
+        VerkleProof verkle = 5;
     }
 }
 
